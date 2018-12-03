@@ -11,7 +11,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
 import org.w3c.dom.Document;
@@ -36,6 +35,7 @@ public class MapView extends View {
     private Paint paint;
     private RectF totalRect;
     private float scale = 1.0f;
+    float width=-1;
 
     public MapView(Context context) {
         this(context, null);
@@ -59,6 +59,11 @@ public class MapView extends View {
         loadThread.start();
     }
 
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        width=w;
+    }
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -66,26 +71,16 @@ public class MapView extends View {
             return;
         }
         canvas.save();
-        Log.d("TTTTT",scale+"");
+        if (totalRect != null&&width!=-1) {
+            double mapWidth = totalRect.width();
+            scale= (float) (width/mapWidth);
+        }
         canvas.scale(scale, scale);
         for (ProvinceItem provinceItem : itemList) {
             provinceItem.drawItem(canvas, paint, false);
         }
     }
 
-    @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        //获取当前控件宽高值
-        int width = MeasureSpec.getSize(widthMeasureSpec);
-        int height = MeasureSpec.getSize(heightMeasureSpec);
-
-        //map 的宽度和高度
-        if (totalRect != null) {
-            double mapWidth = totalRect.width();
-            scale = (float) (width / mapWidth);
-        }
-        setMeasuredDimension(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
-    }
 
     private Thread loadThread = new Thread() {
         @Override
