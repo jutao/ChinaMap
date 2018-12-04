@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 
 import org.w3c.dom.Document;
@@ -29,13 +30,16 @@ import javax.xml.parsers.DocumentBuilderFactory;
  * 1::06:56
  */
 public class MapView extends View {
+
     private Context context;
     private int[] colorArray = new int[]{0xFF239BD7, 0xFF30ABE7, 0xFF47FF26, 0xFF778899, 0xFF556AFE};
     private List<ProvinceItem> itemList;
     private Paint paint;
+    private Paint textPaint;
     private RectF totalRect;
     private float scale = 1.0f;
-    float width=-1;
+    float width = -1;
+    private ProvinceItem selectItem = null;
 
     public MapView(Context context) {
         this(context, null);
@@ -55,14 +59,16 @@ public class MapView extends View {
         this.context = context;
 
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
+        textPaint=new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setTextSize(70);
+        textPaint.setColor(Color.BLACK);
         loadThread.start();
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        width=w;
+        width = w;
     }
 
     @Override
@@ -71,16 +77,35 @@ public class MapView extends View {
             return;
         }
         canvas.save();
-        if (totalRect != null&&width!=-1) {
+        if (totalRect != null && width != -1) {
             double mapWidth = totalRect.width();
-            scale= (float) (width/mapWidth);
+            scale = (float) (width / mapWidth);
+            if(selectItem!=null){
+                canvas.drawText(selectItem.getProvinceName(),width/2,totalRect.bottom+500,textPaint);
+            }
+
         }
         canvas.scale(scale, scale);
         for (ProvinceItem provinceItem : itemList) {
-            provinceItem.drawItem(canvas, paint, false);
+            provinceItem.drawItem(canvas, paint, provinceItem == selectItem);
         }
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        handleTouch(event.getX(), event.getY());
+        return super.onTouchEvent(event);
+    }
+
+    private void handleTouch(float x, float y) {
+        for (ProvinceItem item : itemList) {
+            if (item.isTouch(x/scale, y/scale)) {
+                selectItem = item;
+                postInvalidate();
+                break;
+            }
+        }
+    }
 
     private Thread loadThread = new Thread() {
         @Override
@@ -104,9 +129,11 @@ public class MapView extends View {
                 for (int i = 0; i < items.getLength(); i++) {
                     Element element = (Element) items.item(i);
                     String pathData = element.getAttribute("android:pathData");
+                    String provinceName = element.getAttribute("android:name");
                     Path path = PathParser.createPathFromPathData(pathData);
-                    ProvinceItem proviceItem = new ProvinceItem(path);
-                    list.add(proviceItem);
+                    ProvinceItem provinceItem = new ProvinceItem(path);
+                    provinceItem.setProvinceName(provinceName);
+                    list.add(provinceItem);
                     //获取宽高
                     RectF rect = new RectF();
                     path.computeBounds(rect, true);
